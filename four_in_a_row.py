@@ -13,7 +13,7 @@ from itertools import cycle
 
 
 plan = """
-2D felülnézet minden egyes szabad hely taratlmazza hogy mennyi hiányzik még
+2D felülnézet minden egyes szabad hely tartalmazza hogy mennyi hiányzik még
 keressen hármasokat, mert ha a vége azonos, akkor nyert
 """
 
@@ -35,18 +35,21 @@ class Connect4:
             self.print_matrix()
             print("it is the turn of player_" + player)
 
-            oszlop = int(input("Válaszd ki az oszlopot zerobased: "))
+            while True:
+                oszlop = int(input("Válaszd ki az oszlopot zerobased: "))
 
-            try:
-                sor = self.keres_sor(oszlop)
-            except IndexError:
-                print("nincs ilyen oszlop...kilépés")
-                return
-            else:
-                # betelt az oszlop
-                if sor is None:
-                    print("Ez az oszlop már megtelt...kilépés")
+                try:
+                    sor = self.keres_sor(oszlop)
+                except IndexError:
+                    print("nincs ilyen oszlop...kilépés")
                     return
+                else:
+                    # betelt az oszlop, válassz másikat nem kezeli ha elfogyott az összes
+                    if sor is None:
+                        print("Ez az oszlop már megtelt, válassz egy másikat")
+                        continue
+                    else:
+                        break
 
             self.matrix[sor][oszlop] = player
 
@@ -58,7 +61,7 @@ class Connect4:
             d_right = self.diago_right(oszlop, sor, x_min, x_max, y_min, y_max, player)
 
             if True in {hor, ver, d_left, d_right}:
-                print('Játké vége!', player, ' nyert!')
+                print('Játék vége!', player, ' nyert!')
                 self.print_matrix()
                 return
 
