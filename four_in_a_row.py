@@ -23,8 +23,8 @@ class Connect4:
         self.height: int = row
         self.width: int = column
 
-        self.empty_field: str = 'O'
-        self.player_one: str = 'X'
+        self.empty_field: str = '.'
+        self.player_one: str = 'O'
         self.player_two: str = 'I'
 
         # ezek lesznek az oszlopok
@@ -37,6 +37,7 @@ class Connect4:
 
             while True:
                 oszlop = int(input("Válaszd ki az oszlopot zerobased: "))
+                oszlop -= 1
 
                 try:
                     sor = self.keres_sor(oszlop)
@@ -71,10 +72,10 @@ class Connect4:
                 return i
 
     def print_matrix(self):
-        print('#'*18)
+        print('#'*13)
         for sor in self.matrix[::-1]:
             print(' '.join(map(str, sor)))
-        print('#'*18)
+        print('#'*13)
 
     def calculate_recangle(self, row: int, column: int) -> tuple[int, int, int, int]:  # this is zero-based
         """Azt számolja ki, hogy mennyi lehet hozzáadni az alap koordinátákhoz"""
@@ -92,6 +93,7 @@ class Connect4:
         return x_min, x_max, y_min, y_max
 
     def horizontal(self, x_min: int, x_max: int, y_constant: int, color: str) -> bool:
+        """Ellenőrzi, hogy van-e négy egyforma színű az aktuális sorban.\n"""
         egyezes = 0
 
         for x in range(x_min, x_max+1):
@@ -100,12 +102,14 @@ class Connect4:
 
                 if egyezes == 4:
                     return True
-            else:
+
+            elif egyezes > 0:
                 egyezes = 0
 
-        return True if egyezes >= 4 else False
+        return False
 
     def vertical(self, x_constant: int, y_min: int, y_constant: int, color: str) -> bool:
+        """Ellenőrzi hogy van-e négy egyforma színű az aktuális oszlopban.\n"""
         egyezes = 0
 
         for y in range(y_min, y_constant + 1):
@@ -120,12 +124,10 @@ class Connect4:
         return False
 
     def diago_left(self, x_poz: int, y_poz: int, x_min: int, x_max: int, y_min: int, y_max: int, color: str) -> bool:
-        """Balról fölfelé átló"""
-        egyseges_balalso: int = self.take_smaller(x_min, y_poz)
+        """Ellenőrzi, hogy van-e egymás után négy egyforma színű, a balról-jobbra felfelé irányú átlóban.\n"""
+        egyseges_balalso: int = self.take_smaller(x_min, y_min)
         egyseges_jobbfelso: int = self.take_smaller(x_max, y_max)
-        # print(egyseges_balalso, egyseges_jobbfelso, 'sth', x_max, y_max)
 
-        # sry, ez most bruteforce no iterable
         egyezes = 0
 
         for x, y in zip(range(x_poz - egyseges_balalso, x_poz + egyseges_jobbfelso + 1, 1),
@@ -136,13 +138,14 @@ class Connect4:
 
                 if egyezes == 4:
                     return True
-            else:
+
+            elif egyezes > 0:
                 egyezes = 0
 
-        return True if egyezes >= 4 else False
+        return False
 
     def diago_right(self, x_poz: int, y_poz: int, x_min: int, x_max: int, y_min: int, y_max: int, color: str) -> bool:
-        """Balról lefelé átló"""
+        """Ellenőrzi, hogy van-e egymás után négy egyforma színű, a balról-jobbra lefelé irányú átlóban.\n"""
         egyseges_balfelso: int = self.take_smaller(x_min, y_max)
         egyseges_jobbalso: int = self.take_smaller(x_max, y_min)
 
@@ -156,7 +159,8 @@ class Connect4:
 
                 if egyezes == 4:
                     return True
-            else:
+
+            elif egyezes > 0:
                 egyezes = 0
 
         return True if egyezes >= 4 else False
