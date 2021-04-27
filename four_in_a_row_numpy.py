@@ -7,13 +7,22 @@ Linux: pip3 install numpy
 """
 
 # IMPORTS
-import numpy
+import numpy as np
 
 
 # this class handle the gameboard
 class GameBoard:
     """A numpy-based gameboard\n"""
-    pass
+
+    def __init__(self, row: int, column: int):
+        """Init the matrix storing the state of the game.\n"""
+        # this matrix represents the gameboard
+        self.matrix = np.zeros((row, column), dtype=int)
+
+        # dimensions of the matrix for indexing (max values for index)
+        self.row: int = row - 1
+        self.column: int = column - 1
+        pass
 
 
 # MAIN
