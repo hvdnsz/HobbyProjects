@@ -53,6 +53,14 @@ class GameBoard:
         """Set every values of the matrix to zero.\n"""
         self.matrix = np.zeros((self.row+1, self.column+1))
 
+    def generate_diagonal_lb_rt(self):
+        """Generator function, generate x, y to check winning on a lb_rt-diagonal row.\n"""
+        pass
+
+    def denerate_diagonal_lt_rb(self):
+        """Generator function, generate x, y to check winning on a lt_rb-diagonal row.\n"""
+        pass
+
 
 # MAIN
 def main():

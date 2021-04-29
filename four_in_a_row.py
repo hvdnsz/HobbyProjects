@@ -36,27 +36,23 @@ class Connect4:
             print("it is the turn of player_" + player)
 
             while True:
-                oszlop = int(input("Válaszd ki az oszlopot zerobased: "))
-                oszlop -= 1
+                oszlop: int = int(input("Válaszd ki az oszlopot non zerobased: "))
 
-                try:
-                    sor = self.keres_sor(oszlop)
-                except IndexError:
-                    print("nincs ilyen oszlop...kilépés")
-                    return
-                else:
-                    # betelt az oszlop, válassz másikat nem kezeli ha elfogyott az összes
-                    if sor is None:
-                        print("Ez az oszlop már megtelt, válassz egy másikat")
-                        continue
-                    else:
-                        break
+                # test if the column is valid
+                if self.validate_column(oszlop):
+                    break
+
+                print("nincs ilyen oszlop...próbáld meg újra")
+
+            # to zero-vased indexing
+            sor = self.keres_sor(oszlop)
+            oszlop -= 1
 
             self.matrix[sor][oszlop] = player
 
             x_min, x_max, y_min, y_max = self.calculate_recangle(sor, oszlop)
 
-            hor = self.horizontal(x_min, x_max, sor, player)
+            hor = self.horizontal(x_min, x_max, oszlop, sor, player)
             ver = self.vertical(oszlop, y_min, sor, player)
             d_left = self.diago_left(oszlop, sor, x_min, x_max, y_min, y_max, player)
             d_right = self.diago_right(oszlop, sor, x_min, x_max, y_min, y_max, player)
@@ -65,6 +61,10 @@ class Connect4:
                 print('Játék vége!', player, ' nyert!')
                 self.print_matrix()
                 return
+
+    def validate_column(self, col):
+        """Validate the column in non-zerobased system.\n"""
+        return True if 1 <= col <= self.width else False
 
     def keres_sor(self, col):
         for i in range(len(self.matrix)):
@@ -92,11 +92,11 @@ class Connect4:
 
         return x_min, x_max, y_min, y_max
 
-    def horizontal(self, x_min: int, x_max: int, y_constant: int, color: str) -> bool:
+    def horizontal(self, x_min: int, x_max: int, x_constant: int,  y_constant: int, color: str) -> bool:
         """Ellenőrzi, hogy van-e négy egyforma színű az aktuális sorban.\n"""
         egyezes = 0
 
-        for x in range(x_min, x_max+1):
+        for x in range(x_constant - x_min, x_constant + x_max+1):
             if self.matrix[y_constant][x] == color:
                 egyezes += 1
 
@@ -112,7 +112,7 @@ class Connect4:
         """Ellenőrzi hogy van-e négy egyforma színű az aktuális oszlopban.\n"""
         egyezes = 0
 
-        for y in range(y_min, y_constant + 1):
+        for y in range(y_constant - y_min, y_constant + 1):
             if self.matrix[y][x_constant] != color:
                 return False
             else:
