@@ -12,14 +12,18 @@ columns each player may complete a line if they play first on the next turn.
 from itertools import cycle
 
 
-plan = """
-2D felülnézet minden egyes szabad hely tartalmazza hogy mennyi hiányzik még
-keressen hármasokat, mert ha a vége azonos, akkor nyert
-"""
+# ADDITIONAL FUNCTION(S)
+def force_within_range(min_: int, max_: int, prompt: str) -> int:
+    while True:
+        out = int(input(prompt))
+        if min_ <= out <= max_:
+            return out
+
+        print('This option is invalid...try again!')
 
 
 class GameBoardConnect4:
-    def __init__(self, empty: str, p1: str, p2: str, row=6, column=7) -> None:
+    def __init__(self, empty='.', p1='O', p2='I', row=6, column=7) -> None:
         # dimensions
         self.height: int = row
         self.width: int = column
@@ -34,14 +38,50 @@ class GameBoardConnect4:
         self.add_y: int = 0
 
         # fields representes as strings
-        self.empty_field: str = empty
+        self.free_field: str = empty
         self.player_one: str = p1
         self.player_two: str = p2
 
         # ezek lesznek az oszlopok
-        self.matrix: list[list] = [[self.empty_field for _ in range(column)] for _ in range(row)]
+        self.matrix: list[list] = [[self.free_field for _ in range(column)] for _ in range(row)]
 
-    def calculate_rectangle(self, row: int, column: int) -> tuple[int, int, int, int]:  # this is zero-based
+    # BUILT IN PLAY
+    def play_game(self):
+        """Simple function tho render a gem between two player.\n"""
+        for current_player in cycle(self.player_one + self.player_two):
+            self.print_matrix()
+            print('It is the turn of player -', current_player)
+
+            # getting the coordinates
+            while True:
+                # the user should answer with nonzero based system, but the system handle it in a zero-based system
+                oszlop = force_within_range(1, 7, 'Please select the column for one two seven: ') - 1
+                sor = self.find_free_row(oszlop)
+                # if htere is a free row
+                if sor is not None:
+                    break
+                print('This column is already full...')
+
+            # update the matriy / "drop" the disk
+            self.matrix[sor][oszlop] = current_player
+            # it is a bit unclear what i s the order or what are the scopes it is a TO-DO
+            self.calculate_rectangle_and_update(sor, oszlop)
+            self.last_x, self.last_y = oszlop, sor
+
+            # check for winning
+            t1 = self.horizontal(current_player)
+            t2 = self.vertical(current_player)
+            t3 = self.diago_left(current_player)
+            t4 = self.diago_right(current_player)
+
+            # in case of winning the program stops
+            if True in {t1, t2, t3, t4}:
+                self.print_matrix()
+                print(current_player, 'has won!...exiting')
+                return
+
+    # CHECK/TEST WINNING
+    def calculate_rectangle_and_update(self, row: int, column: int) -> tuple[int, int, int, int]:  # this is zero-based
         """Azt számolja ki, hogy mennyi lehet hozzáadni az alap koordinátákhoz"""
         border_x: int = self.width - 1
         border_y: int = self.height - 1
@@ -53,6 +93,8 @@ class GameBoardConnect4:
         # horizontal
         sub_y = row if row < 3 else 3
         add_y = border_y - row if row > border_y - 3 else 3
+
+        self.sub_x, self.add_x, self.sub_y, self.add_y = sub_x, add_x, sub_y, add_y
 
         return sub_x, add_x, sub_y, add_y
 
@@ -133,6 +175,28 @@ class GameBoardConnect4:
     def take_smaller(a, b):
         return a if a < b else b
 
+    # COMPLEMENT BUILT-IN PLAY FUNCTION
+    def print_matrix(self):
+        print('#' * 13)
+        for sor in self.matrix[::-1]:
+            print(' '.join(map(str, sor)))
+        print('#' * 13)
+
+    def find_free_row(self, col: int) -> int or None:
+        """
+        Find the index of the first row in a column.\n
+        If there is no free row return None.
+        """
+        for i, row in enumerate(self.matrix):
+            if row[col] == self.free_field:
+                return i
+        return None
+
+
+def main():
+    table = GameBoardConnect4()
+    table.play_game()
+
 
 if __name__ == '__main__':
-    pass
+    main()
