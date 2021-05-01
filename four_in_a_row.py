@@ -22,7 +22,7 @@ def force_within_range(min_: int, max_: int, prompt: str) -> int:
         print('This option is invalid...try again!')
 
 
-class GameBoardConnect4:
+class GameBoard:
     def __init__(self, empty='.', p1='O', p2='I', row=6, column=7) -> None:
         # dimensions
         self.height: int = row
@@ -44,41 +44,6 @@ class GameBoardConnect4:
 
         # ezek lesznek az oszlopok
         self.matrix: list[list] = [[self.free_field for _ in range(column)] for _ in range(row)]
-
-    # BUILT IN PLAY
-    def play_game(self):
-        """Simple function tho render a gem between two player.\n"""
-        for current_player in cycle(self.player_one + self.player_two):
-            self.print_matrix()
-            print('It is the turn of player -', current_player)
-
-            # getting the coordinates
-            while True:
-                # the user should answer with nonzero based system, but the system handle it in a zero-based system
-                oszlop = force_within_range(1, 7, 'Please select the column for one two seven: ') - 1
-                sor = self.find_free_row(oszlop)
-                # if htere is a free row
-                if sor is not None:
-                    break
-                print('This column is already full...')
-
-            # update the matriy / "drop" the disk
-            self.matrix[sor][oszlop] = current_player
-            # it is a bit unclear what i s the order or what are the scopes it is a TO-DO
-            self.calculate_rectangle_and_update(sor, oszlop)
-            self.last_x, self.last_y = oszlop, sor
-
-            # check for winning
-            t1 = self.horizontal(current_player)
-            t2 = self.vertical(current_player)
-            t3 = self.diago_left(current_player)
-            t4 = self.diago_right(current_player)
-
-            # in case of winning the program stops
-            if True in {t1, t2, t3, t4}:
-                self.print_matrix()
-                print(current_player, 'has won!...exiting')
-                return
 
     # CHECK/TEST WINNING
     def calculate_rectangle_and_update(self, row: int, column: int) -> tuple[int, int, int, int]:  # this is zero-based
@@ -193,8 +158,48 @@ class GameBoardConnect4:
         return None
 
 
+class Connect4(GameBoard):
+    def __init__(self, empty='.', p1='O', p2='I', row=6, column=7):
+        super(Connect4, self).__init__(empty, p1, p2, row, column)
+
+    # BUILT IN PLAY
+    def play_game(self):
+        """Simple function tho render a gem between two player.\n"""
+        for current_player in cycle(self.player_one + self.player_two):
+            self.print_matrix()
+            print('It is the turn of player -', current_player)
+
+            # getting the coordinates
+            while True:
+                # the user should answer with nonzero based system, but the system handle it in a zero-based system
+                oszlop = force_within_range(1, 7, 'Please select the column for one two seven: ') - 1
+                sor = self.find_free_row(oszlop)
+                # if htere is a free row
+                if sor is not None:
+                    break
+                print('This column is already full...')
+
+            # update the matriy / "drop" the disk
+            self.matrix[sor][oszlop] = current_player
+            # it is a bit unclear what i s the order or what are the scopes it is a TO-DO
+            self.calculate_rectangle_and_update(sor, oszlop)
+            self.last_x, self.last_y = oszlop, sor
+
+            # check for winning
+            t1 = self.horizontal(current_player)
+            t2 = self.vertical(current_player)
+            t3 = self.diago_left(current_player)
+            t4 = self.diago_right(current_player)
+
+            # in case of winning the program stops
+            if True in {t1, t2, t3, t4}:
+                self.print_matrix()
+                print(current_player, 'has won!...exiting')
+                return
+
+
 def main():
-    table = GameBoardConnect4()
+    table = Connect4()
     table.play_game()
 
 
