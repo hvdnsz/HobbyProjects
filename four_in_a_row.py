@@ -9,10 +9,16 @@ vertical or diagonal line of 4 tokens wins the game.
 From the description of one game grid, your program must determine in which
 columns each player may complete a line if they play first on the next turn.
 """
-from itertools import cycle
+from enum import Enum
 
 
-# ADDITIONAL FUNCTION(S)
+# UTILS
+def player_switcher(p1, p2):
+    while True:
+        yield p1
+        yield p2
+
+
 def force_within_range(min_: int, max_: int, prompt: str) -> int:
     while True:
         out = int(input(prompt))
@@ -22,186 +28,170 @@ def force_within_range(min_: int, max_: int, prompt: str) -> int:
         print('This option is invalid...try again!')
 
 
-class GameBoard:
-    def __init__(self, empty='.', p1='O', p2='I', row=6, column=7) -> None:
+class Cases(Enum):
+    COLUMN_IS_VALID = 0
+    COLUMN_IS_FILLED = 1
+    COLUMN_IS_INAPPROPRIATE = 2
+
+    # I'm not sure
+    PLAYER_1_WIN = 3
+    PLAYER_2_WIN = 4
+    DRAW = 5
+
+
+class Connect4Engine(object):
+    # CONSTANTS
+    EMPTY_FIELD = 0
+    PLAYER_ONE = 1
+    PLAYER_TWO = 2
+
+    def __init__(self, row=6, column=7) -> None:
         # dimensions
         self.height: int = row
         self.width: int = column
 
-        # log last move
-        self.last_x: int = 0
-        self.last_y: int = 0
-        # sub_y/y, add_x/y
-        self.sub_x: int = 0
-        self.sub_y: int = 0
-        self.add_x: int = 0
-        self.add_y: int = 0
+        self.disks_played: int = 0
+        self.disks_limit: int = row * column
 
-        # fields representes as strings
-        self.free_field: str = empty
-        self.player_one: str = p1
-        self.player_two: str = p2
+        # this is the structure of the game board
+        self.matrix: list[list] = [[self.EMPTY_FIELD for _ in range(column)] for _ in range(row)]
 
-        # ezek lesznek az oszlopok
-        self.matrix: list[list] = [[self.free_field for _ in range(column)] for _ in range(row)]
-
-    # CHECK/TEST WINNING
-    def calculate_rectangle_and_update(self, row: int, column: int) -> tuple[int, int, int, int]:  # this is zero-based
-        """Azt számolja ki, hogy mennyi lehet hozzáadni az alap koordinátákhoz"""
+    def check_for_winning(self, row: int, column: int, player) -> bool:  # this is zero-based
+        """Calculate the minimal free space around a disk/coordination and check winning."""
+        # todo: potential performance issue
         border_x: int = self.width - 1
         border_y: int = self.height - 1
 
-        # vertical
+        # horizontal todo mennyi a különbség comma potential helper function
         sub_x = column if column < 3 else 3
         add_x = border_x - column if column > border_x - 3 else 3
-
-        # horizontal
+        # vertical
         sub_y = row if row < 3 else 3
         add_y = border_y - row if row > border_y - 3 else 3
 
-        self.sub_x, self.add_x, self.sub_y, self.add_y = sub_x, add_x, sub_y, add_y
+        def check_horizontal_line() -> bool:
+            matches = 0
+            for x in range(column - sub_x, column + add_x + 1):
 
-        return sub_x, add_x, sub_y, add_y
+                if self.matrix[row][x] == player:
+                    matches += 1
+                elif matches > 0:
+                    matches = 0
 
-    def horizontal(self, player: str) -> bool:
-        """Ellenőrzi, hogy van-e négy egyforma színű az aktuális sorban.\n"""
-        egyezes = 0
+                if matches == 4:
+                    return True
+            return False
 
-        for x in range(self.last_x - self.sub_x, self.last_x + self.add_x + 1):
-            if self.matrix[self.last_y][x] == player:
-                egyezes += 1
+        def check_vertical_line() -> bool:
+            matches = 0
+            for y in range(row - sub_y, row):
+                if self.matrix[y][column] != player:
+                    return False
+                matches += 1
 
-                if egyezes == 4:
+            # do not check the current disk
+            return True if matches == 3 else False
+
+        def check_lb_rt_diagonal_line() -> bool:
+            matches = 0
+            left_corner = min(sub_x, sub_y)
+            right_corner = min(add_x, add_y)
+
+            for x, y in zip(range(column - left_corner, column + right_corner + 1),
+                            range(row - left_corner, row + right_corner + 1)):
+                if self.matrix[y][x] == player:
+                    matches += 1
+                elif matches > 0:
+                    matches = 0
+
+                if matches == 4:
                     return True
 
-            elif egyezes > 0:
-                egyezes = 0
+            return False
 
-        return False
+        def check_lt_rb_diagonal_line() -> bool:
+            matches = 0
+            left_corner = min(sub_x, add_y)
+            right_corner = min(add_x, sub_y)
 
-    def vertical(self, player: str) -> bool:
-        """Ellenőrzi hogy van-e négy egyforma színű az aktuális oszlopban.\n"""
-        egyezes = 0
+            for x, y in zip(range(column - left_corner, column + right_corner + 1),
+                            range(row + left_corner, row - right_corner - 1, -1)):  # y is decreasing
+                if self.matrix[y][x] == player:
+                    matches += 1
+                elif matches > 0:
+                    matches = 0
 
-        for y in range(self.last_y - self.sub_y, self.last_y + 1):
-            if self.matrix[y][self.last_x] != player:
-                return False
-            else:
-                egyezes += 1
+                if matches == 4:
+                    return True
 
-            if egyezes >= 4:
+            return False
+
+        for func in (check_horizontal_line, check_vertical_line, check_lt_rb_diagonal_line, check_lb_rt_diagonal_line):
+            if func() is True:
                 return True
 
         return False
 
-    def diago_left(self, player: str) -> bool:
-        """Ellenőrzi, hogy van-e egymás után négy egyforma színű, a balról-jobbra felfelé irányú átlóban.\n"""
-        egyseges_balalso: int = self.take_smaller(self.sub_x, self.sub_y)
-        egyseges_jobbfelso: int = self.take_smaller(self.add_x, self.add_y)
 
-        egyezes = 0
+class Connect4Game(Connect4Engine):
 
-        for x, y in zip(range(self.last_x - egyseges_balalso, self.last_x + egyseges_jobbfelso + 1, 1),
-                        range(self.last_y - egyseges_balalso, self.last_y + egyseges_jobbfelso + 1, 1)):
+    def __init__(self, player1=None, player2=None):
+        super(Connect4Game, self).__init__()
+        if player1 is not None:
+            self.PLAYER_ONE = player1
+        if player2 is not None:
+            self.PLAYER_TWO = player2
 
-            if self.matrix[y][x] == player:
-                egyezes += 1
-
-                if egyezes == 4:
-                    return True
-
-            elif egyezes > 0:
-                egyezes = 0
-
-        return False
-
-    def diago_right(self, player: str) -> bool:
-        """Ellenőrzi, hogy van-e egymás után négy egyforma színű, a balról-jobbra lefelé irányú átlóban.\n"""
-        egyseges_balfelso: int = self.take_smaller(self.sub_x, self.add_y)
-        egyseges_jobbalso: int = self.take_smaller(self.add_x, self.sub_y)
-
-        egyezes = 0
-
-        for x, y in zip(range(self.last_x - egyseges_balfelso, self.last_x + egyseges_jobbalso + 1, 1),
-                        range(self.last_y + egyseges_balfelso, self.last_y - egyseges_jobbalso - 1, -1)):
-
-            if self.matrix[y][x] == player:
-                egyezes += 1
-
-                if egyezes == 4:
-                    return True
-
-            elif egyezes > 0:
-                egyezes = 0
-
-        return True if egyezes >= 4 else False
-
-    @staticmethod
-    def take_smaller(a, b):
-        return a if a < b else b
-
-    # COMPLEMENT BUILT-IN PLAY FUNCTION
-    def print_matrix(self):
+    def print_matrix(self) -> None:
+        """Just the print the matrix human readable."""
         print('#' * 13)
         for sor in self.matrix[::-1]:
             print(' '.join(map(str, sor)))
         print('#' * 13)
 
-    def find_free_row(self, col: int) -> int or None:
-        """
-        Find the index of the first row in a column.\n
-        If there is no free row return None.
-        """
-        for i, row in enumerate(self.matrix):
-            if row[col] == self.free_field:
-                return i
-        return None
-
-
-class Connect4(GameBoard):
-    def __init__(self, empty='.', p1='O', p2='I', row=6, column=7):
-        super(Connect4, self).__init__(empty, p1, p2, row, column)
-
-    # BUILT IN PLAY
     def play_game(self):
-        """Simple function tho render a gem between two player.\n"""
-        for current_player in cycle(self.player_one + self.player_two):
+        print('The game has begun!!!')
+
+        result_of_the_game = None
+
+        for actual_player in player_switcher(self.PLAYER_ONE, self.PLAYER_TWO):
+
+            # the game board is full
+            if self.disks_played > self.disks_limit:
+                result_of_the_game = 'draw'
+                break
+
+            # inform the player about the actual state
             self.print_matrix()
-            print('It is the turn of player -', current_player)
+            print('It is the turn of player -', actual_player)
 
-            # getting the coordinates
-            while True:
-                # the user should answer with nonzero based system, but the system handle it in a zero-based system
-                oszlop = force_within_range(1, 7, 'Please select the column for one two seven: ') - 1
-                sor = self.find_free_row(oszlop)
-                # if htere is a free row
-                if sor is not None:
+            # get a valid column
+            column: int = int(input('pleas enter the number: ')) - 1
+            # get the row
+            for i, row in enumerate(self.matrix):
+                if row[column] == self.EMPTY_FIELD:
+                    row = i
                     break
-                print('This column is already full...')
+            else:
+                row = 0
 
-            # update the matriy / "drop" the disk
-            self.matrix[sor][oszlop] = current_player
-            # it is a bit unclear what i s the order or what are the scopes it is a TO-DO
-            self.calculate_rectangle_and_update(sor, oszlop)
-            self.last_x, self.last_y = oszlop, sor
+            # place/drop a disk from the actual player
+            self.matrix[row][column] = actual_player
 
-            # check for winning
-            t1 = self.horizontal(current_player)
-            t2 = self.vertical(current_player)
-            t3 = self.diago_left(current_player)
-            t4 = self.diago_right(current_player)
+            # check winning
+            if self.check_for_winning(row, column, actual_player):
+                result_of_the_game = str(actual_player) + ' win!!!'
+                break
 
-            # in case of winning the program stops
-            if True in {t1, t2, t3, t4}:
-                self.print_matrix()
-                print(current_player, 'has won!...exiting')
-                return
+        self.print_matrix()
+        print('the result is:', result_of_the_game)
 
 
 def main():
-    table = Connect4()
-    table.play_game()
+    game = Connect4Game()
+    game.play_game()
 
 
 if __name__ == '__main__':
     main()
+    exit()
