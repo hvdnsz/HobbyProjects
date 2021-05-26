@@ -11,7 +11,7 @@
 ###########
 import pygame
 from pygame import Color
-from four_in_a_row import Connect4Engine
+from four_in_a_row import Connect4GameBoard, player_switcher
 
 
 #############
@@ -58,7 +58,7 @@ TILE_EMPTY = draw_this(BLACK, TILE_SIZE, TILE_PAD)
 #####################################################
 # VISUAL GAMEBOARD DISPLAYING THE ACTUAL GAME STATE #
 #####################################################
-class IAmTheVisualGameBoard(Connect4Engine):
+class IAmTheVisualGameBoard(Connect4GameBoard):
 
     cuclik = {
         0: TILE_EMPTY,
@@ -74,6 +74,16 @@ class IAmTheVisualGameBoard(Connect4Engine):
 
         self.part_width = width
         self.part_height = height
+
+    def place_disk(self, col: int, player):
+        row: int = self.search_row(col)
+        if row != -1:
+            self.matrix[row][col] = player
+
+        # check win
+        win = self.check_for_winning(row, col, player)
+        if win:
+            print(f'Player {player} has won!')
 
     def draw(self):
         pos_y = self.part_height
@@ -99,6 +109,8 @@ class MainWindow:
         # this is very temp or not
         self.done = False
 
+        self.actual_p = player_switcher(1, 2)
+
         # init the screen
         pygame.display.set_caption('Four in a row :)')
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -115,9 +127,15 @@ class MainWindow:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     done = True
-                if event.type == pygame.KEYDOWN:
+                elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         done = True
+
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_pos_x = pygame.mouse.get_pos()[0]
+                    player = next(self.actual_p)
+                    self.gameboard.place_disk(mouse_pos_x // TILE_SIZE, player)
+                    self.done = False
 
             # draw
             self.screen.fill((0, 0, 0))

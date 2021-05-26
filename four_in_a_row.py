@@ -1,13 +1,13 @@
 #!/usr/bin/python
 """
-The classic game of Connect Four is played by two players in a grid of 6 rows
-by 7 columns, standing vertically. Players alternately drop one token from
+The classic game of Connect Four is played by two players in a grid of 6 row_count
+by 7 column_count, standing vertically. Players alternately drop one token from
 the top of one column, and the token falls to the lowest possible grid cell,
 stacking up on the tokens below it. The first player to make a horizontal,
 vertical or diagonal line of 4 tokens wins the game.
 
 From the description of one game grid, your program must determine in which
-columns each player may complete a line if they play first on the next turn.
+column_count each player may complete a line if they play first on the next turn.
 """
 from enum import Enum
 
@@ -28,18 +28,13 @@ def force_within_range(min_: int, max_: int, prompt: str) -> int:
         print('This option is invalid...try again!')
 
 
-class Cases(Enum):
-    COLUMN_IS_VALID = 0
-    COLUMN_IS_FILLED = 1
-    COLUMN_IS_INAPPROPRIATE = 2
-
-    # I'm not sure
-    PLAYER_1_WIN = 3
-    PLAYER_2_WIN = 4
-    DRAW = 5
+class FieldMark(Enum):
+    EMPTY = 0
+    PLAYER_1 = 1
+    PLAYER_2 = 2
 
 
-class Connect4Engine(object):
+class Connect4GameBoard(object):
     # CONSTANTS
     EMPTY_FIELD = 0
     PLAYER_ONE = 1
@@ -47,8 +42,8 @@ class Connect4Engine(object):
 
     def __init__(self, row=6, column=7) -> None:
         # dimensions
-        self.height: int = row
-        self.width: int = column
+        self.row_count: int = row
+        self.column_count: int = column
 
         self.disks_played: int = 0
         self.disks_limit: int = row * column
@@ -56,11 +51,28 @@ class Connect4Engine(object):
         # this is the structure of the game board
         self.matrix: list[list] = [[self.EMPTY_FIELD for _ in range(column)] for _ in range(row)]
 
+    def search_row(self, col: int) -> int:
+        """
+        Find the index of the lowest free row (if there is one).
+        :param col: index of the column
+        :type col: int
+        :return: the index of the first free row or None
+        """
+
+        # now the user can give float like this (2.0)
+        col = int(col)
+
+        for i, row in enumerate(self.matrix):
+            if row[col] == self.EMPTY_FIELD:
+                return i
+        else:
+            return -1
+
     def check_for_winning(self, row: int, column: int, player) -> bool:  # this is zero-based
         """Calculate the minimal free space around a disk/coordination and check winning."""
         # todo: potential performance issue
-        border_x: int = self.width - 1
-        border_y: int = self.height - 1
+        border_x: int = self.column_count - 1
+        border_y: int = self.row_count - 1
 
         # horizontal todo mennyi a különbség comma potential helper function
         sub_x = column if column < 3 else 3
@@ -75,11 +87,12 @@ class Connect4Engine(object):
 
                 if self.matrix[row][x] == player:
                     matches += 1
+                    if matches == 4:
+                        return True
+
                 elif matches > 0:
                     matches = 0
 
-                if matches == 4:
-                    return True
             return False
 
         def check_vertical_line() -> bool:
@@ -101,11 +114,11 @@ class Connect4Engine(object):
                             range(row - left_corner, row + right_corner + 1)):
                 if self.matrix[y][x] == player:
                     matches += 1
+                    if matches == 4:
+                        return True
+
                 elif matches > 0:
                     matches = 0
-
-                if matches == 4:
-                    return True
 
             return False
 
@@ -118,11 +131,11 @@ class Connect4Engine(object):
                             range(row + left_corner, row - right_corner - 1, -1)):  # y is decreasing
                 if self.matrix[y][x] == player:
                     matches += 1
+                    if matches == 4:
+                        return True
+
                 elif matches > 0:
                     matches = 0
-
-                if matches == 4:
-                    return True
 
             return False
 
@@ -133,7 +146,7 @@ class Connect4Engine(object):
         return False
 
 
-class Connect4Game(Connect4Engine):
+class Connect4Game(Connect4GameBoard):
 
     def __init__(self, player1=None, player2=None):
         super(Connect4Game, self).__init__()
