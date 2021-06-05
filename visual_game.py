@@ -75,16 +75,6 @@ class IAmTheVisualGameBoard(Connect4GameBoard):
         self.part_width = width
         self.part_height = height
 
-    def place_disk(self, col: int, player):
-        row: int = self.search_row(col)
-        if row != -1:
-            self.matrix[row][col] = player
-
-        # check win
-        win = self.check_for_winning(row, col, player)
-        if win:
-            print(f'Player {player} has won!')
-
     def draw(self):
         pos_y = self.part_height
 
@@ -105,9 +95,6 @@ class MainWindow:
     def __init__(self):
         # init pygame
         pygame.init()
-
-        # this is very temp or not
-        self.done = False
 
         self.actual_p = player_switcher(1, 2)
 
@@ -131,18 +118,31 @@ class MainWindow:
                     if event.key == pygame.K_ESCAPE:
                         done = True
 
-                elif event.type == pygame.MOUSEBUTTONDOWN:
+                # handle mouse left button
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    # get the x value of the cursor
                     mouse_pos_x = pygame.mouse.get_pos()[0]
-                    player = next(self.actual_p)
-                    self.gameboard.place_disk(mouse_pos_x // TILE_SIZE, player)
-                    self.done = False
+                    column = mouse_pos_x // TILE_SIZE
+
+                    # keres egy szabad sort
+                    szabad_sor = self.gameboard.search_row(column)
+
+                    # ha van kicseréli
+                    if szabad_sor != -1:
+
+                        player = next(self.actual_p)
+                        self.gameboard.matrix[szabad_sor][column] = player
+
+                        # megnézi hogy nyert-e a player
+                        win = self.gameboard.check_for_winning(szabad_sor, column, player)
+                        if win:
+                            print(f'Player {player} has won!')
 
             # draw
             self.screen.fill((0, 0, 0))
 
-            if not self.done:
-                self.gameboard.draw()
-                self.done = True
+            # redraw the gameboard
+            self.gameboard.draw()
 
             self.screen.blit(self.gameboard.image, (0, 0))
 
