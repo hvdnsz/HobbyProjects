@@ -67,16 +67,21 @@ class IAmTheVisualGameBoard(Connect4GameBoard):
         2: TILE_YELLOW
     }
 
-    def __init__(self, width: int, height: int):
+    def __init__(self, width: int, height: int, pos):
         super(IAmTheVisualGameBoard, self).__init__()
 
         self.image = pygame.Surface((width, height))
         self.image.fill((250, 250, 250))
 
+        self.pos = pos
+
         self.part_width = width
         self.part_height = height
 
-    def draw(self):
+    def draw(self, surface: pygame.Surface):
+        surface.blit(self.image, self.pos)
+
+    def redraw_tiles(self):
         pos_y = self.part_height
 
         # draw every tile depend on its id number
@@ -88,6 +93,29 @@ class IAmTheVisualGameBoard(Connect4GameBoard):
                 pos_x += TILE_SIZE
 
 
+class GameOver:
+    def __init__(self, pos, color, size: int):
+
+        # location of the text
+        self.pos = pos
+        self.default_color = color
+
+        # just for safety
+        pygame.font.init()
+        self.my_font = pygame.font.Font(None, size)
+        self.text = self.my_font.render('Default Text', True, (100, 100, 100))
+
+    def set_text(self, text: str, color=None):
+        # optional parameter
+        if color is None:
+            color = self.default_color
+
+        self.text = self.my_font.render(text, True, color)
+
+    def draw(self, surface: pygame.Surface):
+        surface.blit(self.text, self.pos)
+
+
 #############################
 # HANDLE THE DISPLAY SCREEN #
 #############################
@@ -97,24 +125,32 @@ class MainWindow:
         # init pygame
         pygame.init()
 
-        # init basic font system
-        self.my_font = pygame.font.Font(None, 128)
-
         # for switching between two players
         self.actual_p = player_switcher(1, 2)
 
-        # duck tape for game over
-        self.is_game_over = False
+        # game over text init
+        # hardcoded
+        self.game_over_screen = GameOver((TILE_SIZE + 20, TILE_SIZE), PURPLE, 80)
 
         # init the screen
         pygame.display.set_caption('Four in a row :)')
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
         # "static" part of the game
-        self.gameboard = IAmTheVisualGameBoard(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.gameboard = IAmTheVisualGameBoard(SCREEN_WIDTH, SCREEN_HEIGHT, (0, 0))
+
+        # render list for organizing the objects waiting for render
+        self.render_list: list = []
+        self.render_list.append(self.gameboard)
+
+    def render(self):
+        for sprite in self.render_list:
+            sprite.draw(self.screen)
 
     def game_over(self, winner_player):
-        pass
+
+        self.game_over_screen.set_text(f"Player {winner_player} has won!")
+        self.render_list.append(self.game_over_screen)
 
     def main_loop(self):
         done = False
@@ -131,9 +167,7 @@ class MainWindow:
                     if event.key == pygame.K_ESCAPE:
                         done = True
 
-                # handle the left mouse button
-                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and \
-                        not self.is_game_over:
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     # get the x value of the cursor
                     mouse_pos_x = pygame.mouse.get_pos()[0]
                     # determine which column the cursor is in
@@ -156,24 +190,16 @@ class MainWindow:
 
                         # if it was "execute" game over process
                         if win:
-                            self.is_game_over = True
+                            self.game_over(player)
 
             # clear the screen with rgb black
             self.screen.fill((0, 0, 0))
 
             # redraw the gameboard
-            self.gameboard.draw()
-            self.screen.blit(self.gameboard.image, (0, 0))
+            self.gameboard.redraw_tiles()
 
-            # drawing the game over text
-            # over the game board
-            if self.is_game_over:
-                # TODO: I am really sorry, please fix me soon :(
-                # line 134 and __init__
-
-                next(self.actual_p)
-                game_over_text = self.my_font.render('Game Over!', True, PURPLE)
-                self.screen.blit(game_over_text, (TILE_SIZE, TILE_SIZE))
+            # draw all active sprites
+            self.render()
 
             # update the whole screen
             pygame.display.update()
