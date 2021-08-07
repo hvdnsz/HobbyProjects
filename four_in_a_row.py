@@ -49,7 +49,17 @@ class Connect4GameBoard(object):
         self.disks_limit: int = row * column
 
         # this is the structure of the game board
-        self.matrix: list[list] = [[self.EMPTY_FIELD for _ in range(column)] for _ in range(row)]
+        self._init_matrix()
+
+    @property
+    def matrix(self) -> list[list[int]]:
+        return self._matrix
+
+    def _init_matrix(self) -> None:
+        self._matrix: list[list] = [[self.EMPTY_FIELD for _ in range(self.column_count)] for _ in range(self.row_count)]
+
+    def place_disk(self, col: int, row: int, disk: int) -> None:
+        self._matrix[row][col] = disk
 
     def search_row(self, col: int) -> int:
         """
