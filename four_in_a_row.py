@@ -68,82 +68,57 @@ class Connect4GameBoard(object):
         else:
             return -1
 
-    def check_for_winning(self, row: int, column: int, player) -> bool:  # this is zero-based
+    def check_for_winning(self, row: int, col: int, player) -> bool:  # this is zero-based
         """Calculate the minimal free space around a disk/coordination and check winning."""
-        # todo: potential performance issue
         border_x: int = self.column_count - 1
         border_y: int = self.row_count - 1
 
-        # horizontal todo mennyi a különbség comma potential helper function
-        sub_x = column if column < 3 else 3
-        add_x = border_x - column if column > border_x - 3 else 3
+        # horizontal
+        sub_x = min(3, col)
+        add_x = min(3, border_x - col)
         # vertical
-        sub_y = row if row < 3 else 3
-        add_y = border_y - row if row > border_y - 3 else 3
+        sub_y = min(3, row)
+        add_y = min(3, border_y - row)
 
-        def check_horizontal_line() -> bool:
-            matches = 0
-            for x in range(column - sub_x, column + add_x + 1):
+        def check_direction(start_x: int, end_x: int, start_y: int, end_y: int, dx: int, dy: int) -> bool:
+            """attention end_x: last index of x (range + 1) end_y: last index of y (range + 1)"""
 
-                if self.matrix[row][x] == player:
-                    matches += 1
-                    if matches == 4:
-                        return True
+            # pointers
+            x: int = start_x
+            y: int = start_y
+            # count consecutive disks
+            matches: int = 0
 
-                elif matches > 0:
-                    matches = 0
-
-            return False
-
-        def check_vertical_line() -> bool:
-            matches = 0
-            for y in range(row - sub_y, row):
-                if self.matrix[y][column] != player:
-                    return False
-                matches += 1
-
-            # do not check the current disk
-            return True if matches == 3 else False
-
-        def check_lb_rt_diagonal_line() -> bool:
-            matches = 0
-            left_corner = min(sub_x, sub_y)
-            right_corner = min(add_x, add_y)
-
-            for x, y in zip(range(column - left_corner, column + right_corner + 1),
-                            range(row - left_corner, row + right_corner + 1)):
+            while x <= end_x and y <= end_y:
                 if self.matrix[y][x] == player:
                     matches += 1
                     if matches == 4:
                         return True
-
                 elif matches > 0:
                     matches = 0
 
-            return False
-
-        def check_lt_rb_diagonal_line() -> bool:
-            matches = 0
-            left_corner = min(sub_x, add_y)
-            right_corner = min(add_x, sub_y)
-
-            for x, y in zip(range(column - left_corner, column + right_corner + 1),
-                            range(row + left_corner, row - right_corner - 1, -1)):  # y is decreasing
-                if self.matrix[y][x] == player:
-                    matches += 1
-                    if matches == 4:
-                        return True
-
-                elif matches > 0:
-                    matches = 0
+                # increment pointers
+                x += dx
+                y += dy
 
             return False
 
-        for func in (check_horizontal_line, check_vertical_line, check_lt_rb_diagonal_line, check_lb_rt_diagonal_line):
-            if func() is True:
-                return True
+        # horizontal
+        horizontal: bool = check_direction(col - sub_x, col + add_x, row, row, 1, 0)
+        # vertical
+        vertical: bool = check_direction(col, col, row - sub_y, row + add_y, 0, 1)
+        # diagonals go from left to right
+        # diagonal /
+        lb: int = min(sub_x, sub_y)
+        rt: int = min(add_x, add_y)
+        diagonal_lb_rt: bool = check_direction(col - lb, col + rt, row - lb, col + rt, 1, 1)
+        # diagonal \
+        lt: int = min(sub_x, add_y)
+        rb: int = min(add_x, sub_y)
+        # end_y is border_y + 1 because y is decreasing. This won't cause any error since  x and y are synchronized.
+        diagonal_lt_rb: bool = check_direction(col - lt, col + rb, row + lt, border_y + 1, 1, -1)
 
-        return False
+        return max(horizontal, vertical, diagonal_lb_rt, diagonal_lt_rb)
 
 
 class Connect4Game(Connect4GameBoard):
