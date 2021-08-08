@@ -34,7 +34,7 @@ class FieldMark(Enum):
     PLAYER_2 = 2
 
 
-class Connect4GameBoard(object):
+class Connect4GameBoard:
     # CONSTANTS
     EMPTY_FIELD = 0
     PLAYER_ONE = 1
@@ -51,15 +51,14 @@ class Connect4GameBoard(object):
         # this is the structure of the game board
         self._init_matrix()
 
-    @property
-    def matrix(self) -> list[list[int]]:
-        return self._matrix
-
     def _init_matrix(self) -> None:
-        self._matrix: list[list] = [[self.EMPTY_FIELD for _ in range(self.column_count)] for _ in range(self.row_count)]
+        self.matrix: list[list] = [[self.EMPTY_FIELD for _ in range(self.column_count)] for _ in range(self.row_count)]
+
+    def reset(self) -> None:
+        self._init_matrix()
 
     def place_disk(self, col: int, row: int, disk: int) -> None:
-        self._matrix[row][col] = disk
+        self.matrix[row][col] = disk
 
     def search_row(self, col: int) -> int:
         """
