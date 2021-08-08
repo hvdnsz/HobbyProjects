@@ -13,7 +13,7 @@ import sys
 import pygame
 from pygame import Rect, Surface, Color
 from pygame.font import Font
-from four_in_a_row import Connect4GameBoard, player_switcher
+from Connect4BackEnd import Connect4GameBoard, player_switcher
 
 
 #############
