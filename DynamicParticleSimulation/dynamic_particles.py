@@ -1,5 +1,7 @@
 #!usr/bin/python3
+import random
 from random import randint
+from operator import attrgetter
 import math
 import pygame
 from pygame import Vector2, Color, Surface
@@ -9,7 +11,21 @@ import sys
 SCREEN_WIDTH: int = 800
 SCREEN_HEIGHT: int = 600
 BG_COLOR: Color = Color((135, 233, 169))
-FPS: int = 360
+FPS: int = 60 * 2
+NUMBER_OF_PARTICLES: int = 15
+
+
+# random ranges for particle attributes
+def get_random_pos() -> Vector2:
+    return Vector2(randint(0, SCREEN_HEIGHT), randint(0, SCREEN_HEIGHT))
+
+
+def get_random_vel() -> Vector2:
+    return Vector2(randint(-30, 30), randint(-30, 30))
+
+
+def get_random_radius() -> float:
+    return randint(30, 40)
 
 
 def solve_quadratic_formula(a: float, b: float, c: float) -> Vector2:
@@ -29,6 +45,11 @@ def solve_quadratic_formula(a: float, b: float, c: float) -> Vector2:
         return Vector2()
 
 
+class PhysicsError(Exception):
+    """Basic error class for impossible physics (e.g. zero mass or radius)"""
+    pass
+
+
 class Particle:
     def __init__(
             self,
@@ -46,6 +67,13 @@ class Particle:
         self.vel: Vector2 = vel
         self.acc: Vector2 = acc
 
+        # buffers for continuous collision detection
+        self.pos_buffer: Vector2 = self.pos
+        self.vel_buffer: Vector2 = self.vel
+
+        if mass == 0 or radius == 0:
+            raise PhysicsError('mass and radius have to be not zero')
+
         # mass of particle required for elastic collisions
         self.mass: float = mass if mass is not None else radius**2 * math.pi
 
@@ -57,6 +85,11 @@ class Particle:
 
     def update(self, dt: float) -> None:
         """Update particle's position and velocity based on delta time."""
+        # resolve buffers
+        self.pos = self.pos_buffer
+        self.vel = self.vel_buffer
+
+        # update velocity
         self.vel += self.acc * dt
         self.pos += self.vel * dt
 
@@ -110,7 +143,7 @@ class Particle:
                 screen,
                 Color('red'),
                 self.pos,
-                self.pos + self.vel * 2,
+                self.pos + self.vel,
                 width
             )
 
@@ -119,7 +152,7 @@ class Particle:
                 screen,
                 Color('blue'),
                 self.pos,
-                self.pos + self.acc*2,
+                self.pos + self.acc,
                 width
             )
 
@@ -129,21 +162,16 @@ class Particle:
 
 class ParticleGroup:
 
-    def __init__(self, number_of_particles: int):
+    def __init__(self) -> None:
         self.particle_list: list[Particle] = []
-        self._generate_particles(number_of_particles)
 
-    def _generate_particles(self, n: int) -> None:
-        """Generate n particles."""
-        for _ in range(n):
-            p: Particle = Particle(
-                # pos=Vector2(randint(0, SCREEN_WIDTH), randint(0, SCREEN_HEIGHT - 100)),
-                pos=Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2),
-                vel=Vector2(randint(-300, 390), randint(-300, 300)),
-                acc=Vector2(0, 0),
-                mass=10,
-                radius=10
-            )
+    @property
+    def is_empty(self) -> bool:
+        """Return if the ParticleGroup is empty."""
+        return False if self.particle_list else True
+
+    def add(self, p: Particle) -> None:
+        if isinstance(p, Particle):
             self.particle_list.append(p)
 
     @staticmethod
@@ -169,24 +197,34 @@ class ParticleGroup:
         # choosing between the two solution of the quadratic formula
         delta_t = solutions.x if solutions.x > 0 else solutions.y
         # reset position where they were at the time of impact
-        a.update(-delta_t)
-        b.update(-delta_t)
+        collide_point_a: Vector2 = a.pos - a.vel * delta_t
+        collide_point_b: Vector2 = b.pos - b.vel * delta_t
 
         # calculate new velocities
         # https://en.wikipedia.org/wiki/Elastic_collision#Two-dimensional_collision_with_two_moving_objects
         total_mass: float = a.mass + b.mass
-        distance_ab: Vector2 = a.pos - b.pos
-        distance_ba: Vector2 = b.pos - a.pos
-        new_vel_a: Vector2 = a.vel - (2 * b.mass / total_mass) * ((a.vel - b.vel).dot(distance_ab) / distance_ab.magnitude_squared()) * distance_ab
-        new_vel_b: Vector2 = b.vel - (2 * a.mass / total_mass) * ((b.vel - a.vel).dot(distance_ba) / distance_ba.magnitude_squared()) * distance_ba
+        distance_ab: Vector2 = collide_point_a - collide_point_b
+        distance_ba: Vector2 = collide_point_b - collide_point_a
+        try:
+            new_vel_a: Vector2 = a.vel - (2 * b.mass / total_mass) * ((a.vel - b.vel).dot(distance_ab) / distance_ab.magnitude_squared()) * distance_ab
+            new_vel_b: Vector2 = b.vel - (2 * a.mass / total_mass) * ((b.vel - a.vel).dot(distance_ba) / distance_ba.magnitude_squared()) * distance_ba
+        except ZeroDivisionError as e:
+            print(collide_point_a == collide_point_b, collide_point_a)
+            print(collide_point_a + a.vel * delta_t)
+            print(collide_point_b + b.vel * delta_t)
+            print(a.pos - b.pos)
+            print(a.vel, b.vel)
+            print(a.vel - b.vel)
+            print(delta_t)
+            sys.exit()
 
         # update velocities
-        a.vel = new_vel_a
-        b.vel = new_vel_b
+        a.vel_buffer = new_vel_a
+        b.vel_buffer = new_vel_b
 
         # go forward in time with new velocities to roll back from time of impact
-        a.update(delta_t)
-        b.update(delta_t)
+        a.pos_buffer += a.vel_buffer * delta_t
+        b.pos_buffer += b.vel_buffer * delta_t
 
     def update(self, dt: float) -> None:
         """Update all particle in the group."""
@@ -196,19 +234,42 @@ class ParticleGroup:
             # constrains particles within the screen
             particle.handle_walls()
 
-        # check collision with every particle pair
-        # its is inefficient, but the goal of this project to simulate real-ish elastic collisions between particles
-        for i, a in enumerate(self.particle_list[:-1]):
-            for b in self.particle_list[i+1:]:
-                # check for collision
-                if self.is_collision(a, b):
-                    # solve collision
-                    self.resolve_collision(a, b)
+        # # optimized collision detection (less collision check)
+        self.sweep_and_prune()
 
     def draw(self, screen: Surface, draw_vectors: bool = True) -> None:
         """Draw all particle onto a surface."""
         for particle in self.particle_list:
             particle.draw(screen, draw_vectors)
+
+    def sweep_and_prune(self) -> None:
+        # nothing to do
+        if self.is_empty:
+            return
+
+        self.particle_list.sort(key=attrgetter('pos.x'))
+
+        groups: list[list[Particle]] = []
+        last_one: Particle = self.particle_list[0]
+        groups.append([last_one])
+        for particle in self.particle_list[1:]:
+            if last_one.pos.x + last_one.radius >= particle.pos.x - particle.radius:
+                groups[-1].append(particle)
+            else:
+                groups.append([particle])
+
+            last_one = particle
+
+        for group in groups:
+            self._bruteforce_collisions(group)
+
+    def _bruteforce_collisions(self, plist: list[Particle]) -> None:
+        for i, a in enumerate(plist[:-1]):
+            for b in plist[i + 1:]:
+                # check for collision
+                if self.is_collision(a, b):
+                    # solve collision
+                    self.resolve_collision(a, b)
 
 
 def main() -> None:
@@ -217,12 +278,27 @@ def main() -> None:
 
     # main display screen surface
     screen: Surface = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    pygame.display.set_caption(f'Kinetic Gas - Elastic collision - Refresh rate: {FPS}')
 
     # particle group with 100 + 1 particle
-    particles: ParticleGroup = ParticleGroup(101)
+    particles: ParticleGroup = ParticleGroup()
+
+    # generate particles
+    for _ in range(NUMBER_OF_PARTICLES):
+        particles.add(
+            Particle(
+                pos=get_random_pos(),
+                vel=get_random_vel(),
+                acc=Vector2(),
+                radius=get_random_radius(),
+                mass=None,
+                color=None
+            )
+        )
 
     running: bool = True
     dt: float = 1 / FPS
+    draw_vectors: bool = False
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -233,14 +309,17 @@ def main() -> None:
                     pygame.quit()
                     sys.exit()
                 elif event.key == pygame.K_a:
-                    # stop continue simulation
+                    # toggle simulation
                     running = not running
+                elif event.key == pygame.K_v:
+                    # toggle drawing vectors
+                    draw_vectors = not draw_vectors
 
         # simulation can be turned off
         if running:
             particles.update(dt)
             screen.fill(BG_COLOR)
-            particles.draw(screen, draw_vectors=False)
+            particles.draw(screen, draw_vectors)
 
         # refresh screen
         pygame.display.flip()
