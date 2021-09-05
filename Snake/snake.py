@@ -74,6 +74,7 @@ class Snake:
     def __init__(self):
         # hardcoded initial position and direction
         self._direction: Vector2 = self.directions[pygame.K_RIGHT]
+        self._next_direction: Vector2 = self._direction
         self._body: list[Vector2] = [Vector2(2, 0), Vector2(1, 0), Vector2(0, 0)]
 
         # states
@@ -87,9 +88,11 @@ class Snake:
         new_direction: Vector2 = self.directions.get(key)
         if new_direction is None or not self._direction + new_direction:
             return
-        self._direction = new_direction
+        self._next_direction = new_direction
 
     def update(self) -> None:
+        # update checked direction
+        self._direction = self._next_direction
         # get the new head
         new_head: Vector2 = self.head + self._direction
 
@@ -134,11 +137,11 @@ class Snake:
             # save some check with seemingly unnecessary else
             else:
                 # check turnings
-                if (dir_to_pos.y == -1 and dir_to_next_pos.x == 1) or (dir_to_pos.x == -1 and dir_to_next_pos.y == 1):
+                if dir_to_pos.y == -1 and dir_to_next_pos.x == 1 or dir_to_pos.x == -1 and dir_to_next_pos.y == 1:
                     image = middle_graphics[2]
-                elif (dir_to_pos.x == 1 and dir_to_next_pos.y == 1) or (dir_to_pos.y == -1 and dir_to_next_pos.x == -1):
+                elif dir_to_pos.x == 1 and dir_to_next_pos.y == 1 or dir_to_pos.y == -1 and dir_to_next_pos.x == -1:
                     image = middle_graphics[3]
-                elif (dir_to_pos.y == 1 and dir_to_next_pos.x == -1) or (dir_to_pos.x == 1 and dir_to_next_pos.y == -1):
+                elif dir_to_pos.y == 1 and dir_to_next_pos.x == -1 or dir_to_pos.x == 1 and dir_to_next_pos.y == -1:
                     image = middle_graphics[4]
                 # lets hope there will be no error in the game logic (there should be)
                 else:
